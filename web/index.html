@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>video_pipeline — studio</title>
+<meta name="description" content="Local-first beat-cut video studio. Zero dollars by default." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,900;1,600&family=Playfair+Display:ital,wght@0,700;0,800;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar__tag">
+    <span class="bar__tag-dot" aria-hidden="true"></span>
+    LOCAL-FIRST <span class="bar__sep">·</span> <span class="cost-chip">$0.00</span>
+  </div>
+
+  <nav class="bar__nav" aria-label="Stages">
+    <button type="button" data-scroll="#stage-source"><span>01</span>Source</button>
+    <button type="button" data-scroll="#stage-shape"><span>02</span>Shape</button>
+    <button type="button" data-scroll="#stage-render"><span>03</span>Render</button>
+  </nav>
+
+  <div class="bar__status">
+    <span class="dot" id="health-dot" title="orchestrator status"></span>
+    <span id="health-label">connecting…</span>
+    <button type="button" class="copy-btn" id="copy-endpoint">Copy endpoint</button>
+  </div>
+</header>
+
+<main>
+
+  <section class="hero" id="hero">
+    <p class="hero__eyebrow">VIDEO PIPELINE — PHASES 01 · 02 · 03</p>
+    <h1 class="hero__title">CUT ON<br>THE&nbsp;BEAT.</h1>
+    <p class="hero__sub"><em>Your footage, your track, your titles — assembled to the beat.<br>No cloud required. No bill, unless you go looking for one.</em></p>
+    <button type="button" class="hero__cta" data-scroll="#stage-source">
+      BEGIN
+      <svg width="14" height="20" viewBox="0 0 14 20" fill="none" aria-hidden="true">
+        <path d="M7 1V19M7 19L1 13M7 19L13 13" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+    </button>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- STAGE 01 — SOURCE                                             -->
+  <!-- ============================================================ -->
+  <section class="stage stage--01" id="stage-source" style="--accent:219,5,8">
+    <div class="stage__number" aria-hidden="true">01</div>
+    <div class="stage__grid">
+      <div class="stage__head">
+        <p class="stage__eyebrow">STAGE 01 <span class="stage__tags">#LOCAL&nbsp;&nbsp;#FREE&nbsp;&nbsp;#STOCK</span></p>
+        <h2 class="stage__title stage__title--serif">Source</h2>
+        <p class="stage__desc">
+          A folder of clips and one audio track is enough. Add a brief and
+          licensed stock footage joins the pool too — still nothing to pay.
+        </p>
+      </div>
+      <div class="stage__form">
+        <label class="field">
+          <span class="field__label">Audio track <em>required</em></span>
+          <input type="text" id="f-audio" placeholder="./inputs/track.mp3" autocomplete="off">
+        </label>
+        <label class="field">
+          <span class="field__label">Clips folder</span>
+          <input type="text" id="f-clips" placeholder="./inputs/local_clips" autocomplete="off">
+        </label>
+        <label class="field field--wide">
+          <span class="field__label">Brief <em>drives stock search + generation</em></span>
+          <textarea id="f-brief" rows="2" placeholder="rainy city at night; neon signs"></textarea>
+        </label>
+        <p class="hint">Separate multiple searches with <code>;</code> — each is queried independently.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- STAGE 02 — SHAPE                                              -->
+  <!-- ============================================================ -->
+  <section class="stage stage--02" id="stage-shape" style="--accent:189,34,109">
+    <div class="stage__number" aria-hidden="true">02</div>
+    <div class="stage__grid">
+      <div class="stage__head">
+        <p class="stage__eyebrow">STAGE 02 <span class="stage__tags">#BEATS&nbsp;&nbsp;#3D&nbsp;&nbsp;#BLENDER</span></p>
+        <h2 class="stage__title stage__title--sans">Shape</h2>
+        <p class="stage__desc">
+          How the edit cuts, and whether a 3D title rides over it — rendered
+          headlessly with Blender, free and offline.
+        </p>
+      </div>
+      <div class="stage__form">
+        <label class="field">
+          <span class="field__label">Duration (s)</span>
+          <input type="number" id="f-duration" placeholder="full track" min="0" step="0.5">
+        </label>
+        <label class="field">
+          <span class="field__label">Seed</span>
+          <input type="number" id="f-seed" placeholder="random" step="1">
+        </label>
+        <label class="field">
+          <span class="field__label">Format</span>
+          <select id="f-format">
+            <option value="1920x1080x30" selected>Landscape — 1920×1080</option>
+            <option value="1080x1920x30">Vertical — 1080×1920</option>
+            <option value="1080x1080x30">Square — 1080×1080</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field__label">Transition</span>
+          <select id="f-transition">
+            <option value="cut" selected>Cut</option>
+            <option value="crossfade">Crossfade</option>
+          </select>
+        </label>
+
+        <div class="field-row field-row--custom-format" id="row-custom-format" hidden>
+          <label class="field field--third">
+            <span class="field__label">Width</span>
+            <input type="number" id="f-width" value="1920" min="16" step="2">
+          </label>
+          <label class="field field--third">
+            <span class="field__label">Height</span>
+            <input type="number" id="f-height" value="1080" min="16" step="2">
+          </label>
+          <label class="field field--third">
+            <span class="field__label">FPS</span>
+            <input type="number" id="f-fps" value="30" min="1" step="1">
+          </label>
+        </div>
+
+        <label class="field field--wide">
+          <span class="field__label">3D title <em>optional, Blender</em></span>
+          <input type="text" id="f-title" placeholder="BEAT CUT" autocomplete="off">
+        </label>
+
+        <details class="advanced">
+          <summary>Title details</summary>
+          <div class="advanced__grid">
+            <label class="field">
+              <span class="field__label">Style</span>
+              <select id="f-title-style">
+                <option value="metal" selected>Metal</option>
+                <option value="matte">Matte</option>
+                <option value="neon">Neon</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Position</span>
+              <select id="f-title-position">
+                <option value="center" selected>Center</option>
+                <option value="top">Top</option>
+                <option value="bottom">Bottom</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Appears at (s)</span>
+              <input type="number" id="f-title-at" value="0" min="0" step="0.5">
+            </label>
+            <label class="field">
+              <span class="field__label">Duration (s)</span>
+              <input type="number" id="f-title-seconds" value="2.5" min="0.2" step="0.5">
+            </label>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- STAGE 03 — RENDER                                             -->
+  <!-- ============================================================ -->
+  <section class="stage stage--03" id="stage-render" style="--accent:203,138,9">
+    <div class="stage__number" aria-hidden="true">03</div>
+    <div class="stage__grid stage__grid--render">
+      <div class="stage__head">
+        <p class="stage__eyebrow">STAGE 03 <span class="stage__tags">#FFMPEG&nbsp;&nbsp;#DOLLAR&nbsp;ZERO</span></p>
+        <h2 class="stage__title stage__title--impact">Render</h2>
+        <p class="stage__desc">
+          Runs as a subprocess of the local orchestrator. Every attempt is
+          costed before it happens — the total below is never a surprise.
+        </p>
+
+        <label class="field field--checkbox">
+          <input type="checkbox" id="f-verify">
+          <span>Verify cuts against the beat grid after rendering</span>
+        </label>
+
+        <details class="advanced">
+          <summary>Sourcing &amp; spend</summary>
+          <div class="advanced__grid">
+            <label class="field">
+              <span class="field__label">Generator</span>
+              <select id="f-generator">
+                <option value="" selected>Default (local_comfyui)</option>
+                <option value="local_comfyui">local_comfyui — free, local GPU</option>
+                <option value="fal_gateway">fal_gateway — paid, disabled by config</option>
+                <option value="heygen">heygen — paid, disabled by config</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Stock clips / query</span>
+              <input type="number" id="f-stock-per-query" value="2" min="0" step="1">
+            </label>
+            <label class="field">
+              <span class="field__label">AI clips to generate</span>
+              <input type="number" id="f-generate" value="0" min="0" step="1">
+            </label>
+            <label class="field">
+              <span class="field__label">Max spend (USD)</span>
+              <input type="number" id="f-max-spend" value="0" min="0" step="0.1">
+            </label>
+          </div>
+          <label class="field field--checkbox">
+            <input type="checkbox" id="f-no-local">
+            <span>Ignore the clips folder — build only from sourced clips</span>
+          </label>
+        </details>
+
+        <button type="button" class="render-btn" id="render-btn">
+          <span class="render-btn__label">RENDER</span>
+          <span class="render-btn__spinner" aria-hidden="true"></span>
+        </button>
+        <p class="render-error" id="render-error" hidden></p>
+      </div>
+
+      <div class="stage__output">
+        <div class="terminal" id="terminal">
+          <div class="terminal__bar">
+            <span class="status-pill" id="status-pill">idle</span>
+            <span class="terminal__cost" id="terminal-cost"></span>
+          </div>
+          <pre class="terminal__log" id="terminal-log">waiting for a render…</pre>
+        </div>
+        <div class="preview" id="preview" hidden>
+          <video id="preview-video" controls playsinline></video>
+          <a id="preview-download" class="download-btn" download>Download MP4</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <button type="button" class="copy-btn copy-btn--foot" id="copy-curl">
+    curl -X POST http://127.0.0.1:8712/render …
+  </button>
+  <p class="foot__line">video_pipeline <span class="bar__sep">·</span> <span id="year"></span> <span class="bar__sep">·</span> always $0.00 on the default path</p>
+</footer>
+
+<script src="/assets/app.js"></script>
+</body>
+</html>
