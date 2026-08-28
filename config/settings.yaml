@@ -1,0 +1,260 @@
+# Pipeline configuration.
+#
+# The free-first rule lives here: the default generator is the locally hosted
+# ComfyUI adapter, and paid adapters are hard-disabled. Nothing in the codebase
+# may call a paid API unless `paid_adapters_enabled` is true AND that adapter is
+# named explicitly. Phase 1 makes no generation calls of any kind.
+
+generator_default: "local_comfyui"
+paid_adapters_enabled: false
+
+budget:
+  # Hard ceiling on estimated spend for a single run, in USD. Overridable with
+  # --max-spend-usd. 0.0 means "any paid call at all aborts the run", which is
+  # the correct default while paid_adapters_enabled is false.
+  max_spend_usd: 0.0
+
+# --------------------------------------------------------------------------
+# Where clips come from when --brief is given (Phase 2)
+# --------------------------------------------------------------------------
+sourcing:
+  # Stock clips downloaded per search query. Free, no GPU, no account beyond a
+  # free API key — this is the practical default path.
+  stock_clips_per_query: 2
+  stock_sources: ["pexels", "pixabay"]
+  min_stock_duration: 2.0
+
+  # AI clips generated per run. Zero by default, and that is not a free-first
+  # compromise: generation costs minutes per clip and needs a discrete GPU, so
+  # it should be asked for rather than assumed. Raise it here or pass
+  # --generate N. When it runs, it runs through `generator_default` above,
+  # which is the local, free adapter.
+  generate_clips: 0
+  generated_seconds: 4.0
+  negative_prompt: "blurry, low quality, watermark, text, distorted"
+
+comfyui:
+  # COMFYUI_HOST in .env overrides this.
+  host: "http://127.0.0.1:8188"
+  # Export this from ComfyUI with Dev Mode enabled: Save (API Format).
+  # The plain "Save" format is a different schema and will not load.
+  workflow: "config/comfyui_workflows/wan22_t2v_api.json"
+  timeout_seconds: 900
+  poll_seconds: 2.0
+  # Where to write each parameter into the exported workflow. Normally empty —
+  # the adapter follows the graph's own links to find these. Fill it in only
+  # when the guess is wrong. See what it detected with:
+  #   python src/generators/local_comfyui.py --inspect <workflow.json>
+  # Format: "<node_id>.inputs.<field>"
+  inputs: {}
+  #  prompt:          "6.inputs.text"
+  #  negative_prompt: "7.inputs.text"
+  #  width:           "40.inputs.width"
+  #  height:          "40.inputs.height"
+  #  frames:          "40.inputs.length"
+  #  seed:            "3.inputs.seed"
+
+# PAID. Ignored entirely unless paid_adapters_enabled is true AND
+# generator_default (or --generator) names fal_gateway.
+fal:
+  # No default on purpose: nothing that costs money per call gets picked for you.
+  model: ""
+  timeout_seconds: 900
+  poll_seconds: 3.0
+  max_retries: 3
+  backoff_seconds: 2.0
+  # Used by the budget guard when a model has no entry in `costs`. Deliberately
+  # pessimistic — an overestimate stops the run early, an underestimate does not.
+  default_cost_usd: 0.50
+  # Fill this in from fal.ai's current pricing page before relying on the
+  # budget guard being accurate. Prices change; nothing is hardcoded here that
+  # would quietly go stale.
+  #   "fal-ai/<vendor>/<model>": 0.18
+  costs: {}
+  # Extra model-specific arguments merged into every request.
+  arguments: {}
+
+# PAID, and no free tier of any kind — HeyGen bills per minute of output. Only
+# reachable via an explicit `--generator heygen`, and only with
+# paid_adapters_enabled: true. Never part of a default run.
+heygen:
+  # List yours:
+  #   curl -H "X-Api-Key: $HEYGEN_API_KEY" https://api.heygen.com/v2/avatars
+  avatar_id: ""
+  voice_id: ""
+  avatar_style: "normal"
+  background_color: "#000000"
+  timeout_seconds: 1800
+  poll_seconds: 5.0
+  max_retries: 3
+  backoff_seconds: 2.0
+  # Set from HeyGen's current pricing so the budget guard is accurate.
+  cost_per_call_usd: 1.00
+  arguments: {}
+
+video:
+  width: 1920
+  height: 1080
+  fps: 30
+  # Letterbox rather than crop, so nothing in the source frame is thrown away.
+  # Set to "crop" to fill the frame instead.
+  fit: "pad"
+  pad_color: "black"
+
+encode:
+  video_codec: "libx264"
+  crf: 20
+  preset: "medium"
+  pixel_format: "yuv420p"
+  audio_codec: "aac"
+  audio_bitrate: "192k"
+  # Needed for MP4s that should start playing before they finish downloading.
+  faststart: true
+
+beats:
+  # librosa's tempo prior. Leave null to let it decide freely; set it when you
+  # know roughly what the track is doing and beat_track keeps halving/doubling.
+  start_bpm: 120.0
+  tightness: 100.0
+  # Assume 4/4. Used to locate downbeats by picking the beat-phase offset with
+  # the strongest onsets. Set to 3 for waltz-time material.
+  beats_per_bar: 4
+  # librosa's `trim`, which drops beats wherever onset strength is weak. Off by
+  # default: it does not distinguish "silence" from "quiet but still playing",
+  # so on a track with a soft intro it deletes the whole intro's beat grid and
+  # the edit opens on one very long static shot. Leaving the grid intact and
+  # letting the section-energy logic below hold longer through quiet passages
+  # gives the same result for the right reason. Turn it on for recordings with
+  # genuine dead air at the head or tail.
+  trim_silence: false
+
+editing:
+  # How many beats a shot is held for, chosen per-section by energy level.
+  # Higher energy -> fewer beats per cut -> faster cutting.
+  beats_per_cut:
+    low: 8
+    medium: 4
+    high: 2
+  # Prefer landing cuts on bar boundaries when a candidate downbeat is close.
+  snap_to_downbeats: true
+  # Safety rails so a bad tempo estimate can't produce 40ms flicker shots.
+  min_shot_seconds: 0.20
+  max_shot_seconds: 8.0
+  # "cut" (default, keeps the beat grid exact), "crossfade" (a plain
+  # dissolve), or any of ffmpeg's ~58 xfade transitions by name — wipeleft,
+  # pixelize, circleopen, zoomin, dissolve, hblur, and so on. See
+  # editing.transitions.XFADE_TRANSITIONS for the full list.
+  transition: "cut"
+  crossfade_seconds: 0.25
+  # The edit usually ends mid-track; fade the music instead of chopping it.
+  audio_fade_out_seconds: 0.5
+  # Order clips are drawn in: "shuffle" (seeded, no immediate repeats) or
+  # "sequential".
+  clip_order: "shuffle"
+  # Take each successive segment from a later point in its source clip so a
+  # short clip reused many times doesn't show the same two seconds every time.
+  advance_within_clip: true
+
+# --------------------------------------------------------------------------
+# Post-processing on the assembled edit (Phase 4). Pure ffmpeg filters, free
+# and offline — no LUT files, no network, no paid service of any kind. Every
+# knob here defaults to off; a run that never mentions this section renders
+# exactly as it always did.
+# --------------------------------------------------------------------------
+effects:
+  # "none", or a preset from editing.looks.LOOKS: "blackout", "teal_orange",
+  # "punchy", "bleach", "vintage".
+  look: "none"
+  # A .cube (or .3dl/.dat/.m3d) LUT file, applied via ffmpeg's own lut3d.
+  # Stacks with `look` and the numeric grade below rather than replacing
+  # them — LUT first, then the numeric wheels, then the named preset.
+  # Resolve ships hundreds; free community ones exist everywhere. null/""
+  # disables it.
+  lut_path: null
+  # General 3-way colour correction (Resolve-style primary wheels), for
+  # anything that needs a grade built from numbers rather than a preset name
+  # — e.g. one synthesized to match a reference video's own measured stats.
+  # Each is [r, g, b] in -1..1. All-zero/1.0/0.0 (the defaults) disables it.
+  grade_lift: [0.0, 0.0, 0.0]      # shadows
+  grade_gamma: [0.0, 0.0, 0.0]     # midtones
+  grade_gain: [0.0, 0.0, 0.0]      # highlights
+  grade_saturation: 1.0
+  grade_contrast: 1.0
+  grade_brightness: 0.0
+  # Spatial+temporal denoise (ffmpeg hqdn3d). 0 disables it.
+  denoise_strength: 0.0
+  # A slow zoom across each shot's own duration — AE's keyframed camera
+  # moves, applied to still-feeling footage. Amount is a fraction over 1.0
+  # (0.12 = 12% zoom by the end of the shot); 0 disables it. Built from
+  # discrete steps, not a continuous animation (see editing/camera.py for
+  # why); more steps look smoother at the cost of filter-graph complexity.
+  ken_burns_amount: 0.0
+  ken_burns_steps: 8
+  ken_burns_direction: "in"     # "in" or "out"
+  ken_burns_alternate: false    # flip direction every other shot
+  ken_burns_pan: [0.0, 0.0]     # (dx, dy) fraction of frame drifted by shot end
+  # A warm glow blended into one corner of the frame, generated in-graph —
+  # no stock footage needed. 0 opacity disables it.
+  light_leak_opacity: 0.0
+  light_leak_color: [255, 160, 40]   # RGB 0-255
+  light_leak_center: [0.85, 0.15]    # fraction of frame width/height
+  # Key this colour to transparent and composite over chroma_key_background.
+  # null disables it.
+  chroma_key_color: null
+  chroma_key_similarity: 0.18
+  chroma_key_background: "0x000000"
+  # Blend N consecutive frames: motion blur at a small N (2-4), a trailing
+  # ghost/double-exposure look at a larger one (8+). 1 disables it.
+  temporal_blend_frames: 1
+  # Film grain, 0-100. 0 disables it.
+  grain_strength: 0
+  # Sharpen (positive) or soften (negative), -2..5. 0 disables it.
+  sharpen_amount: 0.0
+  # Darken the corners, 0-1. 0 disables it.
+  vignette_strength: 0.0
+  # Peak zoom on every cut, as a fraction over 1.0. 0 disables it. This is a
+  # snap-in/hold/snap-out, not an eased animation — ffmpeg's scale/crop do not
+  # reliably re-evaluate a time-based expression per frame on every build, so
+  # this is built from two fixed frames (normal, zoomed) switched with
+  # `overlay`'s `enable=`, which is confirmed to work.
+  punch_zoom_amount: 0.0
+  punch_zoom_seconds: 0.22
+  # Zoom only every Nth cut, for edits cut too fast to zoom on all of them.
+  punch_zoom_every_nth: 1
+  # RGB channel-split burst on every cut, in pixels of shift. 0 disables it.
+  glitch_shift_px: 0
+  glitch_seconds: 0.08
+  glitch_every_nth: 1
+  # Every shot opens in slow motion and whips up to speed into the cut —
+  # probably the single biggest driver of the "edit" look. Off by default:
+  # it changes how much source footage a shot consumes, so it can quietly
+  # exhaust a short clip faster than the plain cut-planner expects. Falls
+  # back to an unramped shot automatically wherever the footage is too short
+  # to support it — never combined with frozen-frame padding.
+  speed_ramp_enabled: false
+  # Portion of the shot's own duration spent in the slow stage.
+  speed_ramp_fraction: 0.45
+  speed_ramp_slow_factor: 0.5   # < 1 = slow motion
+  speed_ramp_fast_factor: 1.3   # > 1 = sped up
+
+# --------------------------------------------------------------------------
+# 3D elements rendered with headless Blender (Phase 3). Free and offline.
+# --------------------------------------------------------------------------
+elements:
+  # "metal", "matte" or "neon".
+  title_style: "metal"
+  # RGB 0-1, as "r,g,b".
+  title_color: "1,1,1"
+  title_position: "center"   # center | top | bottom
+  title_fade_seconds: 0.3
+  # BLENDER_BIN in .env overrides auto-discovery. Rendering is CPU-bound
+  # without a GPU — roughly a second per frame at 640x360 on integrated
+  # graphics — so elements are cached on their content and reused across runs.
+
+render:
+  # Segments rendered per ffmpeg pass; passes are joined losslessly afterwards.
+  # Each input costs roughly 24MB on top of a ~1.1GB floor for a 1080p encode,
+  # so this is what stops peak memory growing with the length of the edit.
+  # Lower it if a render dies with an allocation error; raise it to keep more
+  # crossfade joins inside a single pass.
+  max_inputs_per_pass: 24

@@ -1,0 +1,16 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+
+# Media in and out — regenerate, don't commit.
+inputs/local_clips/*
+!inputs/local_clips/.gitkeep
+inputs/cache/*
+!inputs/cache/.gitkeep
+output/*
+!output/.gitkeep
+inputs/track.mp3
