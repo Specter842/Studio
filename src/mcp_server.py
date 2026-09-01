@@ -49,6 +49,7 @@ if str(SRC_DIR) not in sys.path:
 import config  # noqa: E402
 import orchestrator_cli  # noqa: E402
 from audio.beat_detect import BeatDetectionError, detect_beats  # noqa: E402
+from audio.transcribe import TranscriptionError, to_srt, transcribe_audio  # noqa: E402
 from editing import assembler  # noqa: E402
 from editing.assembler import PlanningError  # noqa: E402
 from editing.looks import LOOKS  # noqa: E402
@@ -235,6 +236,59 @@ def plan_edit(
     }
 
 
+def transcribe(
+    audio_path: str,
+    language: str | None = None,
+    model_size: str = "base",
+    write_srt_to: str | None = None,
+    srt_mode: str = "segment",
+) -> dict[str, Any]:
+    """Word-level speech transcription — free, local, CPU-only (faster-whisper).
+
+    Use this for anything keyed to *what was said*: caption generation
+    (`write_srt_to`, `srt_mode="segment"` for normal captions or `"word"`
+    for word-level/karaoke captions), or finding silences/retakes via the
+    returned `gaps` (pauses of >= 0.5s between recognised words — not an
+    energy analysis, so a stretch of only filler noise counts as a gap too).
+
+    `model_size`: "tiny"/"base" run fine on CPU with no GPU; "small" and up
+    are slower and only worth it with a GPU or unusually hard audio. The
+    model downloads once (~140MB for "base") and is cached locally after
+    that — the first call in a session is the slow one.
+    """
+    try:
+        transcript = transcribe_audio(audio_path, language=language, model_size=model_size)
+    except (TranscriptionError, FileNotFoundError) as exc:
+        return {"error": str(exc)}
+
+    result: dict[str, Any] = {
+        "language": transcript.language,
+        "language_probability": round(transcript.language_probability, 3),
+        "duration_seconds": round(transcript.duration, 3),
+        "full_text": transcript.full_text,
+        "segments": [
+            {
+                "text": s.text, "start": round(s.start, 3), "end": round(s.end, 3),
+                "words": [
+                    {"text": w.text, "start": round(w.start, 3),
+                     "end": round(w.end, 3), "probability": round(w.probability, 3)}
+                    for w in s.words
+                ],
+            }
+            for s in transcript.segments
+        ],
+        "gaps": [[round(a, 3), round(b, 3)] for a, b in transcript.gaps()],
+        "summary": transcript.summary(),
+    }
+
+    if write_srt_to:
+        srt = to_srt(transcript, mode=srt_mode)
+        Path(write_srt_to).write_text(srt, encoding="utf-8")
+        result["srt_path"] = write_srt_to
+
+    return result
+
+
 def render_edit(
     audio: str,
     out: str,
@@ -298,7 +352,10 @@ def render_edit(
     }
 
 
-TOOLS = (list_clips, analyze_audio, list_looks, list_transitions, plan_edit, render_edit)
+TOOLS = (
+    list_clips, analyze_audio, transcribe, list_looks, list_transitions,
+    plan_edit, render_edit,
+)
 
 
 def create_server():
@@ -307,15 +364,16 @@ def create_server():
     mcp = FastMCP(
         "video-pipeline",
         instructions=(
-            "Local, free-first, beat-synced video editing. Typical flow: "
-            "list_clips to see what footage is available, analyze_audio to "
-            "get the track's tempo/beat grid/energy sections, plan_edit to "
-            "see the cut timeline *before* spending render time, then "
-            "render_edit with whichever look/transition/effects fit what "
-            "was asked for. Read a skill under skills/ first if one matches "
-            "the task — they carry judgment calls (cut density per energy "
-            "level, which effects suit which genre) that aren't in any "
-            "single tool's schema."
+            "Local, free-first video editing. Two workflows: beat-synced "
+            "cutting to music (list_clips -> analyze_audio for the beat "
+            "grid/energy sections -> plan_edit to preview the cut timeline "
+            "before spending render time -> render_edit), and speech-driven "
+            "editing (transcribe for word-level timestamps -> use its "
+            "`gaps` to find silences/retakes, or write_srt_to for captions). "
+            "Read a skill under skills/ first if one matches the task — "
+            "they carry judgment calls (cut density per energy level, which "
+            "effects suit which genre) that aren't in any single tool's "
+            "schema."
         ),
     )
     for tool in TOOLS:

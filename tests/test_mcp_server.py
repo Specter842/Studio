@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 import mcp_server
-from conftest import requires_ffmpeg
+from conftest import requires_ffmpeg, requires_tts
 
 
 # --- list_clips --------------------------------------------------------------
@@ -50,6 +50,40 @@ def test_analyze_audio_matches_the_known_click_track(click_track: Path) -> None:
 
 def test_analyze_audio_reports_an_error_for_a_missing_file(tmp_path: Path) -> None:
     result = mcp_server.analyze_audio(str(tmp_path / "nope.wav"))
+
+    assert "error" in result
+
+
+# --- transcribe --------------------------------------------------------
+
+@requires_tts
+def test_transcribe_returns_words_and_gaps(spoken_audio: Path) -> None:
+    result = mcp_server.transcribe(str(spoken_audio), language="en")
+
+    assert "error" not in result
+    assert result["language"] == "en"
+    assert result["segments"]
+    all_words = [w for s in result["segments"] for w in s["words"]]
+    assert any("quick" in w["text"].lower() for w in all_words)
+    assert isinstance(result["gaps"], list)
+
+
+@requires_tts
+def test_transcribe_writes_an_srt_file_when_asked(
+    spoken_audio: Path, tmp_path: Path
+) -> None:
+    out_path = tmp_path / "captions.srt"
+    result = mcp_server.transcribe(
+        str(spoken_audio), language="en", write_srt_to=str(out_path)
+    )
+
+    assert result.get("srt_path") == str(out_path)
+    assert out_path.is_file()
+    assert "-->" in out_path.read_text(encoding="utf-8")
+
+
+def test_transcribe_reports_an_error_for_a_missing_file(tmp_path: Path) -> None:
+    result = mcp_server.transcribe(str(tmp_path / "nope.wav"))
 
     assert "error" in result
 

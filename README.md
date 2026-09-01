@@ -308,23 +308,36 @@ live.
 measures the result frame by frame: every planned cut must appear at exactly
 its frame and nowhere else.
 
-Blender tests skip cleanly when Blender is not installed, and the orchestrator
-tests skip without FastAPI.
+Blender tests skip cleanly when Blender is not installed, the orchestrator
+tests skip without FastAPI, and `tests/test_transcribe.py` (plus the two
+`transcribe`-related cases in `test_mcp_server.py`) skip without Windows
+SAPI available to generate known-ground-truth test speech — real TTS audio
+through the real Whisper model, not a mocked transcript, the same principle
+as the click track. The first run downloads the Whisper model (~140MB) from
+Hugging Face; every run after that is offline, cached at
+`~/.cache/huggingface`.
 
 **On a memory-constrained machine**, tests can fail in a full run while passing
-individually — Blender needs roughly a gigabyte to start, and the effects
-suite (`test_looks`, `test_compositing`, `test_finishing`, `test_speed_ramp`,
-`test_verify`, plus every rendered assertion in `test_effects`) launches a real
-ffmpeg subprocess per assertion, on top of pytest, librosa and ffmpeg all
-already running. The tell is `[WinError 1455] The paging file is too small`,
-tests erroring (not failing) only in a full run, or different tests failing on
-each run. Enabling a page file fixes it; so does splitting the run:
+individually — Blender needs roughly a gigabyte to start, faster-whisper's
+model load is the single biggest individual allocation in the whole suite
+(a caught allocation failure under load, and once an outright process crash,
+both observed while this was being built — never a bug in the code itself,
+confirmed by the same test passing cleanly once memory was available), and
+the effects suite (`test_looks`, `test_compositing`, `test_finishing`,
+`test_speed_ramp`, `test_verify`, plus every rendered assertion in
+`test_effects`) launches a real ffmpeg subprocess per assertion, on top of
+pytest, librosa and ffmpeg all already running. The tell is
+`[WinError 1455] The paging file is too small`, an `mkl_malloc`/`MemoryError`
+from faster-whisper, tests erroring (not failing) only in a full run, or
+different tests failing on each run. Enabling a page file fixes it; so does
+splitting the run:
 
 ```bash
 python -m pytest tests/test_beat_detect.py tests/test_assembler.py tests/test_local_clips.py tests/test_budget.py tests/test_transitions.py tests/test_generators.py tests/test_local_comfyui.py tests/test_fal_gateway.py tests/test_heygen.py
 python -m pytest tests/test_stock_fetch.py tests/test_sourcing.py tests/test_pipeline_e2e.py
 python -m pytest tests/test_looks.py tests/test_effects.py tests/test_compositing.py tests/test_finishing.py tests/test_speed_ramp.py tests/test_verify.py
 python -m pytest tests/test_animation3d.py tests/test_orchestrator.py
+python -m pytest tests/test_transcribe.py tests/test_mcp_server.py
 ```
 
 ---
@@ -415,13 +428,26 @@ python src/mcp_server.py            # stdio transport
                  "args": ["/absolute/path/to/src/mcp_server.py"]}}}
 ```
 
-Six tools, all free, all local: `list_clips`, `analyze_audio`, `list_looks`,
-`list_transitions`, `plan_edit` (the cut timeline, computed but not
-rendered — see exactly what will happen before spending render time),
-`render_edit` (the real thing, blocking, same `orchestrator_cli.build_argv`
-translation the HTTP API and Studio use — one flag surface, three front
-doors). `skills/beat-sync-cutting/SKILL.md` is the first playbook; more
-belong in `skills/` the same way.
+Seven tools, all free, all local: `list_clips`, `analyze_audio`, `transcribe`
+(word-level speech timestamps — captions via `write_srt_to`, silence/retake
+candidates via the returned `gaps`), `list_looks`, `list_transitions`,
+`plan_edit` (the cut timeline, computed but not rendered — see exactly what
+will happen before spending render time), `render_edit` (the real thing,
+blocking, same `orchestrator_cli.build_argv` translation the HTTP API and
+Studio use — one flag surface, three front doors). `skills/beat-sync-cutting/
+SKILL.md` is the first playbook; more belong in `skills/` the same way.
+
+`transcribe` uses `faster-whisper` (CTranslate2, MIT) — pip-installable, no
+separate binary the way Blender needs one. The model (~140MB for `"base"`)
+downloads once from Hugging Face and is cached at `~/.cache/huggingface`;
+every call after that is offline. Loading it is the one place in this repo
+that reliably surfaces this machine's memory ceiling (no page file, see
+Tests below) — it held up fine in isolation and in most combined runs, but
+hit both a caught allocation failure and one outright process crash under
+heavy concurrent load while this was being built. Real transcription,
+correct word-level timestamps, and appropriately low confidence on a
+genuinely ambiguous word were all confirmed working when memory allowed;
+nothing pointed to a bug in the code itself.
 
 The pattern — expose editing primitives as MCP tools, keep domain judgment
 in read-on-demand skill docs instead of a hardcoded rule engine — is

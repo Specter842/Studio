@@ -22,6 +22,98 @@
   $("year").textContent = new Date().getFullYear();
 
   // ---------------------------------------------------------------------
+  // Hero: fades/rises in once, shortly after paint rather than on scroll —
+  // it's visible from the first frame, so "on scroll" would never fire.
+  // ---------------------------------------------------------------------
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => $("hero").classList.add("is-loaded"));
+  });
+
+  // ---------------------------------------------------------------------
+  // Stage reveal: each .stage__grid stays hidden until an IntersectionObserver
+  // says its stage has actually arrived — the CSS transition (opacity/blur/
+  // rise) is what turns the sticky-stacking scroll from a hard swap into
+  // something that reads as arriving on purpose. threshold is low and
+  // rootMargin trims the bottom because a `position:sticky` element reports
+  // as "intersecting" the instant any part of its box is in the viewport,
+  // which — for a box that's about to fill the whole screen — is basically
+  // "as soon as it exists," not "once it's actually the one on top."
+  // -1 (never un-reveal) reads calmer scrolling back up than a flicker.
+  // ---------------------------------------------------------------------
+
+  const revealObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          revealObserver.unobserve(entry.target);
+        }
+      }
+    },
+    { threshold: 0.35, rootMargin: "0px 0px -15% 0px" }
+  );
+  document.querySelectorAll(".stage__grid").forEach((el) => revealObserver.observe(el));
+
+  // ---------------------------------------------------------------------
+  // Parallax on each stage's giant background number: a slow independent
+  // drift as the stage's own box rises into place, read from its bounding
+  // rect on scroll (passive, rAF-batched — never fights native scrolling).
+  // ---------------------------------------------------------------------
+
+  const parallaxStages = Array.from(document.querySelectorAll(".stage"));
+  let parallaxQueued = false;
+
+  function updateParallax() {
+    parallaxQueued = false;
+    for (const stage of parallaxStages) {
+      const top = stage.getBoundingClientRect().top;
+      stage.style.setProperty("--parallax", `${(top * 0.14).toFixed(1)}px`);
+    }
+  }
+
+  function queueParallax() {
+    if (!parallaxQueued) {
+      parallaxQueued = true;
+      requestAnimationFrame(updateParallax);
+    }
+  }
+
+  window.addEventListener("scroll", queueParallax, { passive: true });
+  updateParallax();
+
+  // ---------------------------------------------------------------------
+  // Magnetic buttons: the CTA and the render button nudge toward the
+  // cursor while it's within a short radius, and ease back to centre on
+  // leave. Reads mouse position, writes two CSS custom properties — the
+  // actual motion lives entirely in the .magnetic CSS rule.
+  // ---------------------------------------------------------------------
+
+  document.querySelectorAll(".magnetic").forEach((button) => {
+    const strength = 0.35;
+    const maxPull = 14;
+
+    button.addEventListener("mousemove", (event) => {
+      const rect = button.getBoundingClientRect();
+      const dx = event.clientX - (rect.left + rect.width / 2);
+      const dy = event.clientY - (rect.top + rect.height / 2);
+      button.classList.add("is-tracking");
+      button.style.setProperty(
+        "--mx", `${Math.max(-maxPull, Math.min(maxPull, dx * strength)).toFixed(1)}px`
+      );
+      button.style.setProperty(
+        "--my", `${Math.max(-maxPull, Math.min(maxPull, dy * strength)).toFixed(1)}px`
+      );
+    });
+
+    button.addEventListener("mouseleave", () => {
+      button.classList.remove("is-tracking");
+      button.style.setProperty("--mx", "0px");
+      button.style.setProperty("--my", "0px");
+    });
+  });
+
+  // ---------------------------------------------------------------------
   // Copy-to-clipboard micro-interaction
   // ---------------------------------------------------------------------
 

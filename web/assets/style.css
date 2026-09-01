@@ -202,6 +202,27 @@ body {
   font-weight: 600;
 }
 
+.hero,
+.hero__eyebrow, .hero__title, .hero__sub, .hero__cta {
+  opacity: 0;
+  transform: translateY(28px);
+  filter: blur(4px);
+}
+.hero { opacity: 1; transform: none; filter: none; } /* the section itself is always visible; only its children animate */
+.hero__eyebrow, .hero__title, .hero__sub, .hero__cta {
+  transition:
+    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hero.is-loaded .hero__eyebrow { opacity: 1; transform: none; filter: none; transition-delay: 0.05s; }
+.hero.is-loaded .hero__title   { opacity: 1; transform: none; filter: none; transition-delay: 0.15s; }
+.hero.is-loaded .hero__sub     { opacity: 1; transform: none; filter: none; transition-delay: 0.32s; }
+.hero.is-loaded .hero__cta     { opacity: 1; transform: none; filter: none; transition-delay: 0.46s; }
+@media (prefers-reduced-motion: reduce) {
+  .hero__eyebrow, .hero__title, .hero__sub, .hero__cta { opacity: 1; transform: none; filter: none; }
+}
+
 .hero__cta {
   font: inherit;
   font-size: 13px;
@@ -217,10 +238,23 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  transition: transform 0.2s ease, background 0.2s ease;
 }
-.hero__cta:hover { transform: translateY(-2px); background: #262626; }
+.hero__cta:hover { background: #262626; }
 .hero__cta svg { animation: bob 1.6s ease-in-out infinite; }
+
+/* Magnetic hover: app.js nudges --mx/--my toward the cursor while it's over
+   the button and eases them back to 0 on leave. Uses the standalone `translate`
+   property rather than `transform`, deliberately — .hero__cta and .render-btn
+   already use `transform` for their own hover-lift and entrance animation,
+   and `translate`/`transform` compose independently instead of one clobbering
+   the other the way two rules both writing `transform` would. */
+.magnetic {
+  --mx: 0px;
+  --my: 0px;
+  translate: var(--mx) var(--my);
+  transition: translate 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s ease, background 0.2s ease;
+}
+.magnetic.is-tracking { transition: translate 0.12s ease-out, transform 0.15s ease, background 0.2s ease; }
 
 @keyframes bob {
   0%, 100% { transform: translateY(0); }
@@ -258,6 +292,34 @@ body {
   user-select: none;
   pointer-events: none;
   z-index: -1;
+  /* Driven by app.js on scroll: a slow independent drift as the stage
+     arrives, read from --parallax (set on the parent .stage). Nothing here
+     if JS never runs — it just sits still, which is a fine fallback. */
+  transform: translateY(var(--parallax, 0px));
+  will-change: transform;
+}
+
+/* Content fades/rises/sharpens in as its stage becomes the active one —
+   toggled by an IntersectionObserver in app.js. The stage itself is always
+   present (sticky needs that), only its content is held back until it's
+   actually the one on top. */
+.stage__grid {
+  opacity: 0;
+  transform: translateY(36px) scale(0.985);
+  filter: blur(6px);
+  transition:
+    opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.stage__grid.is-visible {
+  opacity: 1;
+  transform: none;
+  filter: blur(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage__grid { opacity: 1; transform: none; filter: none; transition: none; }
+  .stage__number { transform: none; }
 }
 
 .stage__grid {

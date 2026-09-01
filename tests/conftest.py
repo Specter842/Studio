@@ -155,6 +155,67 @@ def click_track(media_dir: Path) -> Path:
     return path
 
 
+# Deliberately picked for two words a small Whisper model plausibly mishears
+# ("beat sync" homophones as "beat sink") — real speech tests should not
+# require perfect transcription, only *correct where confident, honest where
+# not*, and this text is what actually surfaced that behaviour in practice.
+SPOKEN_TEXT = (
+    "The quick brown fox jumps over the lazy dog. "
+    "Video editing with beat sync cutting is the whole point of this pipeline."
+)
+
+
+def _has_sapi() -> bool:
+    if sys.platform != "win32":
+        return False
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Add-Type -AssemblyName System.Speech; "
+             "(New-Object System.Speech.Synthesis.SpeechSynthesizer)."
+             "GetInstalledVoices().Count"],
+            capture_output=True, text=True, timeout=15,
+        )
+        return result.returncode == 0 and int(result.stdout.strip() or 0) > 0
+    except Exception:
+        return False
+
+
+requires_tts = pytest.mark.skipif(
+    not _has_sapi(),
+    reason="Windows SAPI (System.Speech) not available for generating test speech",
+)
+
+
+@pytest.fixture(scope="session")
+def spoken_audio(media_dir: Path) -> Path:
+    """Real synthesised speech, via Windows SAPI, with known ground-truth text.
+
+    Same principle as the click track: known content in, so a test can assert
+    a number instead of an impression. This is real TTS audio going through
+    the real Whisper model — not a mocked transcription — because a
+    real-transcription bug (misparsed word boundaries, a language-detection
+    mixup) is exactly the kind of thing a mock would never catch.
+    """
+    path = media_dir / "spoken.wav"
+    if path.exists():
+        return path
+
+    script = (
+        "Add-Type -AssemblyName System.Speech; "
+        "$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+        "$synth.SelectVoice('Microsoft Zira Desktop'); "
+        f"$synth.SetOutputToWaveFile('{path}'); "
+        f"$synth.Speak('{SPOKEN_TEXT}'); "
+        "$synth.Dispose()"
+    )
+    subprocess.run(
+        ["powershell", "-NoProfile", "-Command", script],
+        check=True, capture_output=True, text=True, timeout=30,
+    )
+    return path
+
+
 @pytest.fixture(scope="session")
 def structured_track(media_dir: Path) -> Path:
     """A click track with real dynamics: quiet, loud, quiet.

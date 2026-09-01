@@ -251,6 +251,19 @@ elements:
   # without a GPU — roughly a second per frame at 640x360 on integrated
   # graphics — so elements are cached on their content and reused across runs.
 
+# --------------------------------------------------------------------------
+# Word-level speech transcription (faster-whisper). Free, local, CPU-only.
+# --------------------------------------------------------------------------
+transcription:
+  # "tiny"/"base" run fine on CPU with no GPU; "small" and up are slower and
+  # only worth it with a GPU or unusually hard audio.
+  model_size: "base"
+  # Leave null to auto-detect; set an ISO code ("en") to skip detection.
+  language: null
+  # Pause length (seconds) between recognised words counted as a gap by
+  # Transcript.gaps() — candidate silences/retakes, not an energy analysis.
+  min_gap_seconds: 0.5
+
 render:
   # Segments rendered per ffmpeg pass; passes are joined losslessly afterwards.
   # Each input costs roughly 24MB on top of a ~1.1GB floor for a 1080p encode,

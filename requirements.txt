@@ -32,3 +32,9 @@ uvicorn>=0.30
 # Exposes the pipeline as tools for Claude Desktop/Code, Cursor, or any other
 # MCP client. Official Anthropic SDK, free, open protocol.
 mcp>=1.9,<2
+
+# --- Speech transcription -----------------------------------------------
+# Word-level timestamps for captions and silence/retake detection. CPU-only,
+# free, MIT. The model (~140MB for "base") downloads once from Hugging Face
+# on first use and is cached locally after that.
+faster-whisper>=1.0

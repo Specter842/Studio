@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,900;1,600&family=Playfair+Display:ital,wght@0,700;0,800;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/style.css" />
+<link rel="stylesheet" href="/assets/style.css?v=2" />
 </head>
 <body>
 
@@ -37,7 +37,7 @@
     <p class="hero__eyebrow">VIDEO PIPELINE — PHASES 01 · 02 · 03</p>
     <h1 class="hero__title">CUT ON<br>THE&nbsp;BEAT.</h1>
     <p class="hero__sub"><em>Your footage, your track, your titles — assembled to the beat.<br>No cloud required. No bill, unless you go looking for one.</em></p>
-    <button type="button" class="hero__cta" data-scroll="#stage-source">
+    <button type="button" class="hero__cta magnetic" data-scroll="#stage-source">
       BEGIN
       <svg width="14" height="20" viewBox="0 0 14 20" fill="none" aria-hidden="true">
         <path d="M7 1V19M7 19L1 13M7 19L13 13" stroke="currentColor" stroke-width="1.6"/>
@@ -97,23 +97,12 @@
           <input type="number" id="f-duration" placeholder="full track" min="0" step="0.5">
         </label>
         <label class="field">
-          <span class="field__label">Seed</span>
-          <input type="number" id="f-seed" placeholder="random" step="1">
-        </label>
-        <label class="field">
           <span class="field__label">Format</span>
           <select id="f-format">
             <option value="1920x1080x30" selected>Landscape — 1920×1080</option>
             <option value="1080x1920x30">Vertical — 1080×1920</option>
             <option value="1080x1080x30">Square — 1080×1080</option>
             <option value="custom">Custom…</option>
-          </select>
-        </label>
-        <label class="field">
-          <span class="field__label">Transition</span>
-          <select id="f-transition">
-            <option value="cut" selected>Cut</option>
-            <option value="crossfade">Crossfade</option>
           </select>
         </label>
 
@@ -138,10 +127,21 @@
         </label>
 
         <details class="advanced">
-          <summary>Title details</summary>
+          <summary>Cut, transition &amp; title details</summary>
           <div class="advanced__grid">
             <label class="field">
-              <span class="field__label">Style</span>
+              <span class="field__label">Seed</span>
+              <input type="number" id="f-seed" placeholder="random" step="1">
+            </label>
+            <label class="field">
+              <span class="field__label">Transition</span>
+              <select id="f-transition">
+                <option value="cut" selected>Cut</option>
+                <option value="crossfade">Crossfade</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Title style</span>
               <select id="f-title-style">
                 <option value="metal" selected>Metal</option>
                 <option value="matte">Matte</option>
@@ -149,7 +149,7 @@
               </select>
             </label>
             <label class="field">
-              <span class="field__label">Position</span>
+              <span class="field__label">Title position</span>
               <select id="f-title-position">
                 <option value="center" selected>Center</option>
                 <option value="top">Top</option>
@@ -157,11 +157,11 @@
               </select>
             </label>
             <label class="field">
-              <span class="field__label">Appears at (s)</span>
+              <span class="field__label">Title appears at (s)</span>
               <input type="number" id="f-title-at" value="0" min="0" step="0.5">
             </label>
             <label class="field">
-              <span class="field__label">Duration (s)</span>
+              <span class="field__label">Title duration (s)</span>
               <input type="number" id="f-title-seconds" value="2.5" min="0.2" step="0.5">
             </label>
           </div>
@@ -220,7 +220,7 @@
           </label>
         </details>
 
-        <button type="button" class="render-btn" id="render-btn">
+        <button type="button" class="render-btn magnetic" id="render-btn">
           <span class="render-btn__label">RENDER</span>
           <span class="render-btn__spinner" aria-hidden="true"></span>
         </button>
@@ -252,6 +252,6 @@
   <p class="foot__line">video_pipeline <span class="bar__sep">·</span> <span id="year"></span> <span class="bar__sep">·</span> always $0.00 on the default path</p>
 </footer>
 
-<script src="/assets/app.js"></script>
+<script src="/assets/app.js?v=2"></script>
 </body>
 </html>
